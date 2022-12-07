@@ -26,6 +26,8 @@ class FlappyBird(object):
     bird_images = [load('assets/sprites/redbird-upflap.png').convert_alpha(),
                    load('assets/sprites/redbird-midflap.png').convert_alpha(),
                    load('assets/sprites/redbird-downflap.png').convert_alpha()]
+
+    fireball_image = load('assets/sprites/fireball.png').convert_alpha()
     # number_images = [load('assets/sprites/{}.png'.format(i)).convert_alpha() for i in range(10)]
 
     bird_hitmask = [pixels_alpha(image).astype(bool) for image in bird_images]
@@ -41,6 +43,9 @@ class FlappyBird(object):
     downward_speed = 1
     upward_speed = -9
 
+    # parameters for fireball
+    velocity = -4
+
     bird_index_generator = cycle([0, 1, 2, 1])
 
     def __init__(self):
@@ -51,6 +56,7 @@ class FlappyBird(object):
         self.bird_height = self.bird_images[0].get_height()
         self.pipe_width = self.pipe_images[0].get_width()
         self.pipe_height = self.pipe_images[0].get_height()
+        # self.fireball_width = 
 
         self.bird_x = int(self.screen_width / 5)
         self.bird_y = int((self.screen_height - self.bird_height) / 2)
