@@ -27,14 +27,18 @@ class FlappyBird(object):
                    load('assets/sprites/redbird-midflap.png').convert_alpha(),
                    load('assets/sprites/redbird-downflap.png').convert_alpha()]
 
+    # load fireball image
     fireball_image = load('assets/sprites/fireball.png').convert_alpha()
+    fireball_image = rotate(fireball_image, 180)
+
     # number_images = [load('assets/sprites/{}.png'.format(i)).convert_alpha() for i in range(10)]
 
     bird_hitmask = [pixels_alpha(image).astype(bool) for image in bird_images]
     pipe_hitmask = [pixels_alpha(image).astype(bool) for image in pipe_images]
+    fireball_hitmask = pixels_alpha(fireball_image).astype(bool)
 
-    fps = 30
-    pipe_gap_size = 100
+    fps = 144
+    pipe_gap_size = 175
     pipe_velocity_x = -4
 
     # parameters for bird
@@ -44,19 +48,19 @@ class FlappyBird(object):
     upward_speed = -9
 
     # parameters for fireball
-    velocity = -4
+    fireball_velocity_x = -8
 
     bird_index_generator = cycle([0, 1, 2, 1])
 
     def __init__(self):
-
         self.iter = self.bird_index = self.score = 0
 
         self.bird_width = self.bird_images[0].get_width()
         self.bird_height = self.bird_images[0].get_height()
         self.pipe_width = self.pipe_images[0].get_width()
         self.pipe_height = self.pipe_images[0].get_height()
-        # self.fireball_width = 
+        self.fireball_width = self.fireball_image.get_width()
+        self.fireball_height = self.fireball_image.get_height()
 
         self.bird_x = int(self.screen_width / 5)
         self.bird_y = int((self.screen_height - self.bird_height) / 2)
@@ -70,6 +74,8 @@ class FlappyBird(object):
         pipes[1]["x_upper"] = pipes[1]["x_lower"] = self.screen_width * 1.5
         self.pipes = pipes
 
+        self.fireball = self.generate_fireball()
+
         self.current_velocity_y = 0
         self.is_flapped = False
 
@@ -78,9 +84,15 @@ class FlappyBird(object):
         gap_y = randint(2, 10) * 10 + int(self.base_y / 5)
         return {"x_upper": x, "y_upper": gap_y - self.pipe_height, "x_lower": x, "y_lower": gap_y + self.pipe_gap_size}
 
+    def generate_fireball(self):
+        x = self.screen_width + 10
+        y = randint(0, int(self.base_y))
+        return {"x": x, "y": y}
+
     def is_collided(self):
         # Check if the bird touch ground
         if self.bird_height + self.bird_y + 1 >= self.base_y:
+            # print("Bird touched ground")
             return True
         bird_bbox = Rect(self.bird_x, self.bird_y, self.bird_width, self.bird_height)
         pipe_boxes = []
@@ -88,18 +100,35 @@ class FlappyBird(object):
             pipe_boxes.append(Rect(pipe["x_upper"], pipe["y_upper"], self.pipe_width, self.pipe_height))
             pipe_boxes.append(Rect(pipe["x_lower"], pipe["y_lower"], self.pipe_width, self.pipe_height))
             # Check if the bird's bounding box overlaps to the bounding box of any pipe
-            if bird_bbox.collidelist(pipe_boxes) == -1:
-                return False
-            for i in range(2):
-                cropped_bbox = bird_bbox.clip(pipe_boxes[i])
-                min_x1 = cropped_bbox.x - bird_bbox.x
-                min_y1 = cropped_bbox.y - bird_bbox.y
-                min_x2 = cropped_bbox.x - pipe_boxes[i].x
-                min_y2 = cropped_bbox.y - pipe_boxes[i].y
-                if np.any(self.bird_hitmask[self.bird_index][min_x1:min_x1 + cropped_bbox.width,
-                       min_y1:min_y1 + cropped_bbox.height] * self.pipe_hitmask[i][min_x2:min_x2 + cropped_bbox.width,
-                                                              min_y2:min_y2 + cropped_bbox.height]):
+            for pipe in pipe_boxes:
+                if bird_bbox.colliderect(pipe):
+                    # print("Bird touched pipe")
                     return True
+
+            # if bird_bbox.collidelist(pipe_boxes):
+            #     print("Bird touched pipe")
+            #     return True
+            # if bird_bbox.collidelist(pipe_boxes) == -1:
+            #     return False
+            # for i in range(2):
+            #     cropped_bbox = bird_bbox.clip(pipe_boxes[i])
+            #     min_x1 = cropped_bbox.x - bird_bbox.x
+            #     min_y1 = cropped_bbox.y - bird_bbox.y
+            #     min_x2 = cropped_bbox.x - pipe_boxes[i].x
+            #     min_y2 = cropped_bbox.y - pipe_boxes[i].y
+            #     if np.any(self.bird_hitmask[self.bird_index][min_x1:min_x1 + cropped_bbox.width,
+            #            min_y1:min_y1 + cropped_bbox.height] * self.pipe_hitmask[i][min_x2:min_x2 + cropped_bbox.width,
+            #                                                   min_y2:min_y2 + cropped_bbox.height]):
+            #         print("Bird touched pipe")
+            #         return True
+
+                
+        # Fireball detection
+        fireball_bbox = Rect(self.fireball["x"], self.fireball["y"], self.fireball_width, self.fireball_height)
+        if bird_bbox.colliderect(fireball_bbox):
+            # print("Bird touched fireball")
+            return True
+
         return False
 
     def next_frame(self, action):
@@ -144,7 +173,14 @@ class FlappyBird(object):
             self.pipes.append(self.generate_pipe())
         if self.pipes[0]["x_lower"] < -self.pipe_width:
             del self.pipes[0]
+        # Update fireball's position
+        self.fireball["x"] += self.fireball_velocity_x
+        # Update fireball
+        if self.fireball["x"] < -self.fireball_width:
+            self.fireball = self.generate_fireball()
+
         if self.is_collided():
+            print("Current FPS: ", self.fps_clock.get_fps())
             terminal = True
             reward = -1
             self.__init__()
@@ -156,6 +192,7 @@ class FlappyBird(object):
         for pipe in self.pipes:
             self.screen.blit(self.pipe_images[0], (pipe["x_upper"], pipe["y_upper"]))
             self.screen.blit(self.pipe_images[1], (pipe["x_lower"], pipe["y_lower"]))
+        self.screen.blit(self.fireball_image, (self.fireball["x"], self.fireball["y"]))
         image = array3d(display.get_surface())
         display.update()
         self.fps_clock.tick(self.fps)
