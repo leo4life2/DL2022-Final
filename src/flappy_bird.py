@@ -3,7 +3,7 @@
 """
 from itertools import cycle
 from numpy.random import randint
-from pygame import Rect, init, time, display
+from pygame import Rect, init, time, display, font, Surface
 from pygame.event import pump
 from pygame.image import load
 from pygame.surfarray import array3d, pixels_alpha
@@ -27,6 +27,8 @@ class FlappyBird(object):
                    load('assets/sprites/redbird-midflap.png').convert_alpha(),
                    load('assets/sprites/redbird-downflap.png').convert_alpha()]
 
+    fb_font = font.Font('assets/FlappyBirdy.ttf', 32)
+
     # load fireball image
     fireball_image = load('assets/sprites/fireball.png').convert_alpha()
     fireball_image = rotate(fireball_image, 180)
@@ -37,7 +39,6 @@ class FlappyBird(object):
     pipe_hitmask = [pixels_alpha(image).astype(bool) for image in pipe_images]
     fireball_hitmask = pixels_alpha(fireball_image).astype(bool)
 
-    fps = 144
     pipe_gap_size = 175
     pipe_velocity_x = -4
 
@@ -52,7 +53,11 @@ class FlappyBird(object):
 
     bird_index_generator = cycle([0, 1, 2, 1])
 
-    def __init__(self):
+    def __init__(self, fps=30):
+        self.fps = fps
+        self.text = self.fb_font.render('0', True, (255, 255, 255))
+        self.text_rect = self.text.get_rect(center=(self.screen_width / 2, self.screen_height * 0.1))
+
         self.iter = self.bird_index = self.score = 0
 
         self.bird_width = self.bird_images[0].get_width()
@@ -146,10 +151,13 @@ class FlappyBird(object):
             pipe_center_x = pipe["x_upper"] + self.pipe_width / 2
             if pipe_center_x < bird_center_x < pipe_center_x + 5:
                 self.score += 1
+                # update text with score
+                self.text = self.fb_font.render(str(self.score), True, (255, 255, 255))
                 reward = 1
                 break
 
         # Update index and iteration
+        self.iter += 1
         if (self.iter + 1) % 3 == 0:
             self.bird_index = next(self.bird_index_generator)
             self.iter = 0
@@ -189,10 +197,15 @@ class FlappyBird(object):
         self.screen.blit(self.background_image, (0, 0))
         self.screen.blit(self.base_image, (self.base_x, self.base_y))
         self.screen.blit(self.bird_images[self.bird_index], (self.bird_x, self.bird_y))
+
         for pipe in self.pipes:
             self.screen.blit(self.pipe_images[0], (pipe["x_upper"], pipe["y_upper"]))
             self.screen.blit(self.pipe_images[1], (pipe["x_lower"], pipe["y_lower"]))
+
         self.screen.blit(self.fireball_image, (self.fireball["x"], self.fireball["y"]))
+
+        self.screen.blit(self.text, self.text_rect) 
+  
         image = array3d(display.get_surface())
         display.update()
         self.fps_clock.tick(self.fps)

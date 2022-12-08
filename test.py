@@ -25,9 +25,9 @@ def test(opt):
     else:
         torch.manual_seed(123)
     if torch.cuda.is_available():
-        model = torch.load("{}/flappy_bird".format(opt.saved_path))
+        model = torch.load("{}/fireball_flappy_bird".format(opt.saved_path))
     else:
-        model = torch.load("{}/flappy_bird".format(opt.saved_path), map_location=lambda storage, loc: storage)
+        model = torch.load("{}/fireball_flappy_bird".format(opt.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     game_state = FlappyBird()
     image, reward, terminal = game_state.next_frame(0)
@@ -40,7 +40,7 @@ def test(opt):
 
     while True:
         prediction = model(state)[0]
-        action = torch.argmax(prediction)[0]
+        action = torch.argmax(prediction)
 
         next_image, reward, terminal = game_state.next_frame(action)
         next_image = pre_processing(next_image[:game_state.screen_width, :int(game_state.base_y)], opt.image_size,
